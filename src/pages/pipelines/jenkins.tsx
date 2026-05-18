@@ -184,11 +184,11 @@ const CODE_P1 = `pipeline {
             steps {
                 withCredentials([string(credentialsId: 'sonar_id', variable: 'SONAR_TOKEN')]){
                 withSonarQubeEnv('SONAR'){
-                    sh """mvn package sonar:sonar \\
-                        -Dsonar.projectKey=maratinikhil_spring-petclinic \\
-                        -Dsonar.organization=maratinikhil \\
-                        -Dsonar.host.url=https://sonarcloud.io/ \\
-                        -Dsonar.login=\$SONAR_TOKEN
+                    sh """mvn package sonar:sonar \
+                        -Dsonar.projectKey=maratinikhil_spring-petclinic \
+                        -Dsonar.organization=maratinikhil \
+                        -Dsonar.host.url=https://sonarcloud.io/ \
+                        -Dsonar.login=$SONAR_TOKEN
                         """
                 }
                 }
@@ -214,11 +214,11 @@ const CODE_P2 = `pipeline {
             steps {
                 withCredentials([string(credentialsId: 'sonar_id', variable: 'SONAR_TOKEN')]){
                 withSonarQubeEnv('SONAR'){
-                    sh """mvn package sonar:sonar \\
-                        -Dsonar.projectKey=maratinikhil_spring-petclinic \\
-                        -Dsonar.organization=maratinikhil \\
-                        -Dsonar.host.url=https://sonarcloud.io/ \\
-                        -Dsonar.login=\$SONAR_TOKEN
+                    sh """mvn package sonar:sonar \
+                        -Dsonar.projectKey=maratinikhil_spring-petclinic \
+                        -Dsonar.organization=maratinikhil \
+                        -Dsonar.host.url=https://sonarcloud.io/ \
+                        -Dsonar.login=$SONAR_TOKEN
                         """
                 }
                 }
@@ -257,11 +257,11 @@ const CODE_P3 = `pipeline {
             steps {
                 withCredentials([string(credentialsId: 'sonar_id', variable: 'SONAR_TOKEN')]){
                 withSonarQubeEnv('SONAR'){
-                    sh """mvn package sonar:sonar \\
-                        -Dsonar.projectKey=maratinikhil_spring-petclinic \\
-                        -Dsonar.organization=maratinikhil \\
-                        -Dsonar.host.url=https://sonarcloud.io/ \\
-                        -Dsonar.login=\$SONAR_TOKEN
+                    sh """mvn package sonar:sonar \
+                        -Dsonar.projectKey=maratinikhil_spring-petclinic \
+                        -Dsonar.organization=maratinikhil \
+                        -Dsonar.host.url=https://sonarcloud.io/ \
+                        -Dsonar.login=$SONAR_TOKEN
                         """
                 }
                 }
@@ -322,7 +322,7 @@ const CODE_P4 = `pipeline {
                             -Dsonar.projectKey=maratinikhil_spring-petclinic \
                             -Dsonar.organization=maratinikhil \
                             -Dsonar.host.url=https://sonarcloud.io/ \
-                            -Dsonar.login=\$SONAR_TOKEN
+                            -Dsonar.login=$SONAR_TOKEN
                             """
                     }
                     }
