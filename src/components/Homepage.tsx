@@ -615,7 +615,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           {/* ── HERO ── */}
           <section className={`hp-hero ${visible ? "visible" : ""}`}>
             <div>
-              <div className="hp-eyebrow">DEVOPS COMMAND REFERENCE</div>
+              <div className="hp-eyebrow">DEVOPS CMD REFERENCE</div>
               <h1 className="hp-title">
                 Your DevOps
                 <br />
@@ -624,9 +624,9 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                 Handbook
               </h1>
               <p className="hp-subtitle">
-                A curated, copy-ready reference for Docker, Terraform,
-                Kubernetes & Ansible. Stop Googling the same commands. Start
-                shipping faster.
+                DevOps CMD Reference is a complete DevOps command guide for
+                Docker, Kubernetes, Terraform, Linux, AWS and Ansible.
+                Copy-ready commands for DevOps engineers and cloud automation.
               </p>
               <div className="hp-cta-row">
                 <button
