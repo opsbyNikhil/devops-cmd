@@ -62,11 +62,13 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
 
   useEffect(() => {
     setTimeout(() => setVisible(true), 50);
+
     const interval = setInterval(() => {
       setTermLine((prev) => (prev < termLines.length - 1 ? prev + 1 : prev));
     }, 320);
+
     return () => clearInterval(interval);
-  }, []);
+  }, [termLines.length]);
 
   const handleCopy = (cmd: string, idx: number) => {
     navigator.clipboard.writeText(cmd).then(() => {
