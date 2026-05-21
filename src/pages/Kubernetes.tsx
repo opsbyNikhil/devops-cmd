@@ -17,70 +17,250 @@ interface Category {
 
 const categories: Category[] = [
   {
-    label: "Run & Apply",
-    icon: "▶",
-    color: "#a78bfa",
-    lightColor: "#7c3aed",
-    commands: [
-      {
-        description: "Apply all YAMLs in current directory",
-        template: "kubectl apply -f .",
-      },
-      {
-        description: "Apply a specific YAML file",
-        template: "kubectl apply -f <filename.yaml>",
-        example: "kubectl apply -f pod.yaml",
-      },
-    ],
-  },
-  {
-    label: "Inspect Pods",
-    icon: "🔍",
+    label: "Pods & Nodes",
+    icon: "🧊",
     color: "#60a5fa",
     lightColor: "#2563eb",
     commands: [
-      { description: "List all pods", template: "kubectl get po" },
-      { description: "Watch pods continuously", template: "kubectl get po -w" },
+      { description: "List all pods", template: "kubectl get pods" },
       {
-        description: "Get all resources (pods, services, replicas)",
-        template: "kubectl get all",
+        description: "List pods in all namespaces",
+        template: "kubectl get pods -A",
+      },
+      {
+        description: "List pods with more details",
+        template: "kubectl get pods -o wide",
       },
       {
         description: "Describe a pod",
-        template: "kubectl describe <pod-name>",
-        example: "kubectl describe my-pod",
+        template: "kubectl describe pod <pod-name>",
+      },
+      { description: "Resource usage of pods", template: "kubectl top pods" },
+      { description: "List all nodes", template: "kubectl get nodes" },
+      {
+        description: "Describe a node",
+        template: "kubectl describe node <node-name>",
+      },
+      { description: "Resource usage of nodes", template: "kubectl top nodes" },
+    ],
+  },
+  {
+    label: "Pod Management",
+    icon: "⚙️",
+    color: "#8b5cf6",
+    lightColor: "#7c3aed",
+    commands: [
+      {
+        description: "Run a pod",
+        template: "kubectl run <pod-name> --image=<image>",
+      },
+      { description: "Watch pods", template: "kubectl get pods -w" },
+      {
+        description: "Delete a pod",
+        template: "kubectl delete pod <pod-name>",
+      },
+      { description: "Delete all pods", template: "kubectl delete pods --all" },
+      {
+        description: "Filter pods by label (recommended)",
+        template: "kubectl get pods -l <key>=<value>",
+      },
+      {
+        description: "Apply configuration",
+        template: "kubectl apply -f <file.yaml>",
+      },
+      {
+        description: "Delete configuration",
+        template: "kubectl delete -f <file.yaml>",
       },
     ],
   },
   {
-    label: "Exec",
-    icon: "⚡",
-    color: "#fbbf24",
+    label: "Deployments",
+    icon: "🚀",
+    color: "#f43f5e",
+    lightColor: "#e11d48",
+    commands: [
+      { description: "List deployments", template: "kubectl get deploy" },
+      {
+        description: "Describe deployment",
+        template: "kubectl describe deploy <name>",
+      },
+      {
+        description: "Scale deployment",
+        template: "kubectl scale deploy <name> --replicas=3",
+      },
+      {
+        description: "Rollout status of deployment",
+        template: "kubectl rollout status deploy/<name>",
+      },
+      {
+        description: "Rollout history",
+        template: "kubectl rollout history deploy/<name>",
+      },
+      {
+        description: "Undo last rollout",
+        template: "kubectl rollout undo deploy/<name>",
+      },
+    ],
+  },
+  {
+    label: "Services & Ingress",
+    icon: "🌐",
+    color: "#14b8a6",
+    lightColor: "#0d9488",
+    commands: [
+      { description: "List services", template: "kubectl get svc" },
+      {
+        description: "Services with details",
+        template: "kubectl get svc -o wide",
+      },
+      {
+        description: "Describe service",
+        template: "kubectl describe svc <service-name>",
+      },
+      { description: "List ingresses", template: "kubectl get ingress" },
+      {
+        description: "Describe ingress",
+        template: "kubectl describe ingress <name>",
+      },
+    ],
+  },
+  {
+    label: "Config & Storage",
+    icon: "💾",
+    color: "#f59e0b",
     lightColor: "#d97706",
     commands: [
+      { description: "List ConfigMaps", template: "kubectl get configmap" },
       {
-        description: "Execute into a pod",
-        template: "kubectl exec -it <pod-name> -- bash",
-        example: "kubectl exec -it my-pod -- bash",
+        description: "Describe ConfigMap",
+        template: "kubectl describe configmap <name>",
+      },
+      { description: "List secrets", template: "kubectl get secret" },
+      {
+        description: "Describe secret",
+        template: "kubectl describe secret <name>",
+      },
+      {
+        description: "List PersistentVolumeClaims",
+        template: "kubectl get pvc",
+      },
+      { description: "List PersistentVolumes", template: "kubectl get pv" },
+      {
+        description: "Describe PVC",
+        template: "kubectl describe pvc <pvc-name>",
+      },
+      {
+        description: "All resources in current ns",
+        template: "kubectl get all",
+      },
+      {
+        description: "All resources in all namespaces",
+        template: "kubectl get all -A",
+      },
+    ],
+  },
+  {
+    label: "Debug & Troubleshoot",
+    icon: "🐞",
+    color: "#ec4899",
+    lightColor: "#db2777",
+    commands: [
+      { description: "View pod logs", template: "kubectl logs <pod-name>" },
+      {
+        description: "Follow pod logs",
+        template: "kubectl logs -f <pod-name>",
+      },
+      {
+        description: "Logs of a specific container",
+        template: "kubectl logs <pod-name> -c <container>",
+      },
+      {
+        description: "Open shell in pod",
+        template: "kubectl exec -it <pod-name> -- sh",
+      },
+      {
+        description: "Run command in pod",
+        template: "kubectl exec <pod-name> <cmd>",
+      },
+      { description: "Show events", template: "kubectl get events" },
+      {
+        description: "Show labels",
+        template: "kubectl get pods --show-labels",
+      },
+      {
+        description: "Get help for a resource",
+        template: "kubectl explain <resource>",
+      },
+      {
+        description: "List all API resources",
+        template: "kubectl api-resources",
+      },
+      {
+        description: "Copy from pod",
+        template: "kubectl cp <pod>:<path> <local-path>",
+      },
+      {
+        description: "Copy to pod",
+        template: "kubectl cp <local-path> <pod>:<path>",
       },
     ],
   },
   {
     label: "Namespaces",
-    icon: "📦",
+    icon: "📁",
     color: "#34d399",
     lightColor: "#059669",
     commands: [
+      { description: "List all namespaces", template: "kubectl get ns" },
+      {
+        description: "Namespaces with details",
+        template: "kubectl get ns -o wide",
+      },
       {
         description: "Create a namespace",
-        template: "kubectl create namespace <namespace-name>",
-        example: "kubectl create namespace dev",
+        template: "kubectl create ns <name>",
       },
       {
-        description: "Switch namespace context",
-        template: "kubectl config set-context --namespace=<namespace-name>",
-        example: "kubectl config set-context --namespace=dev",
+        description: "Delete a namespace",
+        template: "kubectl delete ns <name>",
       },
+      {
+        description: "Pods in kube-system namespace",
+        template: "kubectl get pods -n kube-system",
+      },
+      {
+        description: "All resources in a namespace",
+        template: "kubectl get all -n <namespace>",
+      },
+      {
+        description: "Set current namespace",
+        template:
+          "kubectl config set-context --current --namespace=<namespace>",
+      },
+      {
+        description: "View current context",
+        template: "kubectl config view --minify",
+      },
+    ],
+  },
+  {
+    label: "Shortcuts",
+    icon: "⌨️",
+    color: "#94a3b8",
+    lightColor: "#64748b",
+    commands: [
+      { description: "Shortcut: pods", template: "po" },
+      { description: "Shortcut: services", template: "svc" },
+      { description: "Shortcut: deployments", template: "deploy" },
+      { description: "Shortcut: replicasets", template: "rs" },
+      { description: "Shortcut: configmaps", template: "cm" },
+      { description: "Shortcut: secrets", template: "secret" },
+      { description: "Shortcut: namespaces", template: "ns" },
+      { description: "Shortcut: ingresses", template: "ing" },
+      { description: "Shortcut: persistentvolumeclaims", template: "pvc" },
+      { description: "Shortcut: persistentvolumes", template: "pv" },
+      { description: "Shortcut: nodes", template: "node" },
     ],
   },
   {
@@ -99,7 +279,6 @@ const categories: Category[] = [
     ],
   },
 ];
-
 export const allCommands = categories.flatMap((cat) =>
   cat.commands.map((cmd) => ({
     ...cmd,

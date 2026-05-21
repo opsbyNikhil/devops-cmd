@@ -1,174 +1,193 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 
-const MESSAGES: string[] = [
-  "Spinning up containers...",
-  "Deploying to cluster...",
-  "Running pipelines...",
-  "Syncing infrastructure...",
-  "Provisioning nodes...",
-  "Scaling services...",
+const DURATION = 3000; // 10-second boot sequence
+
+// Simulated deployment logs
+const SYSTEM_LOGS = [
+  "systemd[1]: Starting Kubernetes API Server...",
+  "kubelet[842]: Pulling image 'nginx:alpine'",
+  "aws-alb[1192]: Configuring target group rules for mysitedesign.site...",
+  "aws-alb[1192]: Path-based routing initialized on port 443",
+  "docker[2041]: Starting container eventhub-web-prod...",
+  "docker[2042]: Starting container stockvision-analytics-engine...",
+  "django[3010]: Running migrations for pharmacy-billing module...",
+  "django[3010]: Apply all migrations: admin, auth, billing, sessions...",
+  "terraform[4001]: Acquiring state lock. This may take a few moments...",
+  "k8s-pod[5921]: MountVolume.SetUp succeeded for volume 'cert-secret'",
+  "aws-ec2[6022]: Health checks passing. Status: 200 OK",
+  "systemd[1]: Reached target Deployment Complete.",
 ];
 
-const DURATION = 3000;
-
-interface DevOpsLoaderProps {
+interface HardcoreLoaderProps {
   onComplete: () => void;
 }
 
-export default function DevOpsLoader({ onComplete }: DevOpsLoaderProps) {
-  const [msgIndex, setMsgIndex] = useState(0);
+export default function HardcoreDevOpsLoader({
+  onComplete,
+}: HardcoreLoaderProps) {
   const [progress, setProgress] = useState(0);
-  const [remaining, setRemaining] = useState(10);
+  const [logs, setLogs] = useState<string[]>([]);
+  const [hexDump, setHexDump] = useState<string[]>([]);
+  const [cpuCores, setCpuCores] = useState([0, 0, 0, 0]);
   const [visible, setVisible] = useState(true);
 
-  // Message rotation
-  useEffect(() => {
-    const t = setInterval(
-      () => setMsgIndex((i) => (i + 1) % MESSAGES.length),
-      1800,
-    );
-    return () => clearInterval(t);
-  }, []);
+  const logsRef = useRef<HTMLDivElement>(null);
+  const hexRef = useRef<HTMLDivElement>(null);
 
-  // 10-second countdown + auto-dismiss
+  // 1. Master Progress & Exit
   useEffect(() => {
     const start = Date.now();
     const t = setInterval(() => {
       const elapsed = Date.now() - start;
-      const pct = Math.min(100, Math.round((elapsed / DURATION) * 100));
-      const rem = Math.max(0, Math.ceil((DURATION - elapsed) / 1000));
+      const pct = Math.min(100, Math.floor((elapsed / DURATION) * 100));
       setProgress(pct);
-      setRemaining(rem);
+
       if (elapsed >= DURATION) {
         clearInterval(t);
-        setVisible(false);
-        onComplete();
+        setTimeout(() => {
+          setVisible(false);
+          onComplete();
+        }, 800); // Hang on 100% for a split second
       }
-    }, 80);
+    }, 50);
     return () => clearInterval(t);
   }, [onComplete]);
 
+  // 2. Slow Logs Stream (Main deployment steps)
+  useEffect(() => {
+    let i = 0;
+    const interval = (DURATION - 1500) / SYSTEM_LOGS.length;
+    const stream = setInterval(() => {
+      if (i < SYSTEM_LOGS.length) {
+        const time = new Date().toISOString().substring(11, 23);
+        setLogs((prev) => [...prev, `[${time}] ${SYSTEM_LOGS[i]}`]);
+        i++;
+      }
+    }, interval);
+    return () => clearInterval(stream);
+  }, []);
+
+  // 3. Fast Hex Dump Stream (Simulated network/memory traffic)
+  useEffect(() => {
+    const stream = setInterval(() => {
+      const addr = Math.floor(Math.random() * 0xffffffff)
+        .toString(16)
+        .padStart(8, "0");
+      const data = Array.from({ length: 4 }, () =>
+        Math.floor(Math.random() * 0xffff)
+          .toString(16)
+          .padStart(4, "0"),
+      ).join(" ");
+      setHexDump((prev) => [...prev.slice(-14), `0x${addr}  ${data}`]);
+    }, 80);
+    return () => clearInterval(stream);
+  }, []);
+
+  // 4. CPU Core Jitter (htop style)
+  useEffect(() => {
+    const jitter = setInterval(() => {
+      setCpuCores((prev) =>
+        prev.map(() => Math.floor(Math.random() * 80) + 10),
+      );
+    }, 400);
+    return () => clearInterval(jitter);
+  }, []);
+
+  // Auto-scroll refs
+  useEffect(() => {
+    logsRef.current?.scrollIntoView({ behavior: "auto" });
+  }, [logs]);
+
+  useEffect(() => {
+    hexRef.current?.scrollIntoView({ behavior: "auto" });
+  }, [hexDump]);
+
   if (!visible) return null;
+
+  const renderAsciiBar = (pct: number, length: number = 20) => {
+    const filled = Math.round((pct / 100) * length);
+    return `[${"|".repeat(filled)}${" ".repeat(length - filled)}]`;
+  };
 
   return (
     <div style={s.overlay}>
-      <div style={s.card}>
-        {/* ── Spinner ── */}
-        <div style={s.spinWrap}>
-          <svg width="100" height="100" viewBox="0 0 100 100">
-            {/* Track */}
-            <circle
-              cx="50"
-              cy="50"
-              r="42"
-              fill="none"
-              stroke="rgba(255,255,255,0.06)"
-              strokeWidth="8"
-            />
-            {/* Navy arc */}
-            <circle
-              cx="50"
-              cy="50"
-              r="42"
-              fill="none"
-              stroke="#1d4ed8"
-              strokeWidth="8"
-              strokeLinecap="round"
-              strokeDasharray="90 174"
-              style={s.spinA}
-            />
-            {/* Green arc */}
-            <circle
-              cx="50"
-              cy="50"
-              r="42"
-              fill="none"
-              stroke="#22c55e"
-              strokeWidth="8"
-              strokeLinecap="round"
-              strokeDasharray="60 204"
-              style={s.spinB}
-            />
-          </svg>
+      <div style={s.scanlines} />
 
-          {/* Centre infinity logo */}
-          <div style={s.centerLogo}>
-            <svg
-              width="36"
-              height="36"
-              viewBox="0 0 64 64"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M32 32 C30 26,24 22,20 23 C14 25,12 31,12 32 C12 33,14 39,20 41 C24 42,30 38,32 32 Z"
-                fill="none"
-                stroke="#1d4ed8"
-                strokeWidth="4"
-                strokeLinecap="round"
-              />
-              <path
-                d="M32 32 C34 26,40 22,44 23 C50 25,52 31,52 32 C52 33,50 39,44 41 C40 42,34 38,32 32 Z"
-                fill="none"
-                stroke="#22c55e"
-                strokeWidth="4"
-                strokeLinecap="round"
-              />
-              <path
-                d="M29 29 Q32 32 35 29"
-                fill="none"
-                stroke="#1d4ed8"
-                strokeWidth="3.5"
-                strokeLinecap="round"
-              />
-              <path
-                d="M29 35 Q32 32 35 35"
-                fill="none"
-                stroke="#22c55e"
-                strokeWidth="3.5"
-                strokeLinecap="round"
-              />
-            </svg>
+      <div style={s.grid}>
+        {/* TOP LEFT: CPU / Metrics (htop style) */}
+        <div style={s.panel}>
+          <div style={s.panelTitle}>top - node-worker-01</div>
+          <div style={s.metricsContent}>
+            {cpuCores.map((val, i) => (
+              <div key={i} style={s.metricRow}>
+                <span style={s.cyan}>CPU{i}</span>
+                <span style={s.green}>{renderAsciiBar(val, 24)}</span>
+                <span style={s.dim}>{val.toString().padStart(3, " ")}%</span>
+              </div>
+            ))}
+            <div style={s.metricRow}>
+              <span style={s.cyan}>MEM </span>
+              <span style={s.yellow}>{renderAsciiBar(progress, 24)}</span>
+              <span style={s.dim}>{progress.toString().padStart(3, " ")}%</span>
+            </div>
+            <br />
+            <div style={s.dim}>Tasks: 114 total, 2 running, 112 sleeping</div>
+            <div style={s.dim}>Load average: 1.42, 1.28, 1.14</div>
           </div>
         </div>
 
-        {/* Brand */}
-        <div style={s.brand}>
-          DevOps <span style={s.accent}>CMD</span> Reference
-        </div>
-        <div style={s.tagline}>
-          Docker · Kubernetes · Terraform · Linux · AWS
-        </div>
-
-        {/* Terminal message */}
-        <div style={s.msgRow}>
-          <span style={s.cursor}>▋</span>
-          <span style={s.msg} key={msgIndex}>
-            {MESSAGES[msgIndex]}
-          </span>
-        </div>
-
-        {/* Progress bar + timer */}
-        <div style={s.barWrap}>
-          <div style={s.track}>
-            <div style={{ ...s.bar, width: `${progress}%` }} />
+        {/* TOP RIGHT: Network Hex Dump */}
+        <div style={s.panel}>
+          <div style={s.panelTitle}>tcpdump -i eth0 port 443</div>
+          <div style={s.hexContent}>
+            {hexDump.map((line, i) => (
+              <div key={i} style={s.hexLine}>
+                {line}
+              </div>
+            ))}
+            <div ref={hexRef} />
           </div>
-          <div style={s.barMeta}>
-            <span style={s.meta}>{progress}%</span>
-            <span style={s.meta}>{remaining}s</span>
+        </div>
+
+        {/* BOTTOM WIDE: Main Deployment Logs */}
+        <div style={{ ...s.panel, ...s.widePanel }}>
+          <div style={s.panelTitle}>tail -f /var/log/deploy.log</div>
+          <div style={s.logContent}>
+            {logs.map((log, i) => (
+              <div key={i}>
+                <span style={s.dim}>{log.split("] ")[0] + "] "}</span>
+                <span
+                  style={
+                    log.includes("aws")
+                      ? s.yellow
+                      : log.includes("docker") || log.includes("k8s")
+                        ? s.cyan
+                        : log.includes("django")
+                          ? s.green
+                          : { color: "#ccc" } // Fixed here
+                  }
+                >
+                  {log.split("] ")[1]}
+                </span>
+              </div>
+            ))}
+            <div ref={logsRef} />
           </div>
         </div>
       </div>
 
+      {/* FOOTER: Master Progress */}
+      <div style={s.footer}>
+        <div style={s.statusBlink}>
+          {progress < 100 ? "DEPLOYMENT IN PROGRESS" : "SYSTEM ONLINE"}
+        </div>
+        <div style={s.masterBar}>
+          {renderAsciiBar(progress, 50)} {progress}%
+        </div>
+      </div>
+
       <style>{`
-        @keyframes blink    { 0%,100%{opacity:1} 50%{opacity:0} }
-        @keyframes spinA    { from{transform:rotate(0deg)}   to{transform:rotate(360deg)} }
-        @keyframes spinB    { from{transform:rotate(180deg)} to{transform:rotate(540deg)} }
-        @keyframes fadeMsg  {
-          0%  {opacity:0;transform:translateY(5px)}
-          15% {opacity:1;transform:translateY(0)}
-          85% {opacity:1;transform:translateY(0)}
-          100%{opacity:0;transform:translateY(-5px)}
-        }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
       `}</style>
     </div>
   );
@@ -178,94 +197,106 @@ const s: Record<string, React.CSSProperties> = {
   overlay: {
     position: "fixed",
     inset: 0,
-    background: "#0f172a",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 9999,
-    fontFamily: "'Courier New', monospace",
-  },
-  card: {
+    background: "#050505",
+    color: "#ccc",
+    fontFamily: "'Courier New', Courier, monospace", // Raw server font
+    fontSize: "14px",
     display: "flex",
     flexDirection: "column",
-    alignItems: "center",
-    gap: "18px",
-    padding: "44px 52px",
-    background: "#0d1526",
-    border: "1px solid rgba(34,197,94,0.15)",
-    borderRadius: "20px",
-    boxShadow: "0 0 60px rgba(34,197,94,0.06)",
-    maxWidth: "340px",
-    width: "90%",
+    zIndex: 9999,
+    padding: "20px",
+    boxSizing: "border-box",
   },
-  spinWrap: {
-    position: "relative",
-    width: "100px",
-    height: "100px",
-  },
-  spinA: {
-    animation: "spinA 1.4s linear infinite",
-    transformOrigin: "50px 50px",
-  },
-  spinB: {
-    animation: "spinB 1.4s linear infinite",
-    transformOrigin: "50px 50px",
-  },
-  centerLogo: {
+  scanlines: {
     position: "absolute",
     inset: 0,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
+    background:
+      "linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06))",
+    backgroundSize: "100% 4px, 3px 100%",
+    pointerEvents: "none",
+    zIndex: 10,
   },
-  brand: {
-    fontSize: "18px",
-    fontWeight: 800,
-    color: "#f1f5f9",
-    letterSpacing: "0.04em",
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gridTemplateRows: "auto 1fr",
+    gap: "16px",
+    flex: 1,
+    minHeight: 0,
   },
-  accent: { color: "#22c55e" },
-  tagline: { fontSize: "11px", color: "#475569", letterSpacing: "0.12em" },
-  msgRow: { display: "flex", alignItems: "center", gap: "7px", height: "22px" },
-  cursor: {
-    color: "#22c55e",
-    fontSize: "14px",
-    animation: "blink 1s step-end infinite",
-  },
-  msg: {
-    color: "#64748b",
-    fontSize: "13px",
-    animation: "fadeMsg 1.8s ease-in-out",
-  },
-  barWrap: {
+  panel: {
+    border: "1px solid #333",
+    background: "#0a0a0a",
     display: "flex",
     flexDirection: "column",
-    gap: "5px",
-    width: "100%",
-  },
-  track: {
-    width: "100%",
-    height: "3px",
-    background: "rgba(255,255,255,0.06)",
-    borderRadius: "999px",
     overflow: "hidden",
   },
-  bar: {
-    height: "100%",
-    background: "linear-gradient(90deg, #1d4ed8, #22c55e)",
-    borderRadius: "999px",
-    transition: "width 0.1s linear",
+  widePanel: {
+    gridColumn: "1 / -1", // Spans the full width at the bottom
   },
-  barMeta: { display: "flex", justifyContent: "space-between" },
-  meta: { fontSize: "11px", color: "#334155" },
-  skip: {
-    background: "none",
-    border: "none",
-    color: "#334155",
-    fontSize: "11px",
-    cursor: "pointer",
-    letterSpacing: "0.08em",
+  panelTitle: {
+    background: "#1a1a1a",
+    color: "#fff",
     padding: "4px 8px",
-    fontFamily: "'Courier New', monospace",
+    borderBottom: "1px solid #333",
+    fontSize: "12px",
+    fontWeight: "bold",
+    textTransform: "uppercase",
+    letterSpacing: "1px",
   },
+  metricsContent: {
+    padding: "12px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+  },
+  metricRow: {
+    display: "flex",
+    gap: "12px",
+    alignItems: "center",
+  },
+  hexContent: {
+    padding: "12px",
+    overflowY: "hidden",
+    color: "#5f87af", // Terminal blue-grey
+    fontSize: "13px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "2px",
+  },
+  hexLine: {
+    whiteSpace: "pre",
+  },
+  logContent: {
+    padding: "12px",
+    overflowY: "auto",
+    display: "flex",
+    flexDirection: "column",
+    gap: "6px",
+    flex: 1,
+    scrollbarWidth: "none", // Hide scrollbars
+  },
+  footer: {
+    marginTop: "16px",
+    border: "1px solid #333",
+    background: "#111",
+    padding: "12px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    fontWeight: "bold",
+  },
+  masterBar: {
+    color: "#00ff00",
+    letterSpacing: "2px",
+    whiteSpace: "pre",
+  },
+  statusBlink: {
+    color: "#ff0055",
+    animation: "pulse 1s steps(2, start) infinite",
+  },
+  cyan: { color: "#00d7d7" },
+  green: { color: "#87af5f" },
+  yellow: { color: "#d7af5f" },
+  dim: { color: "#666" },
 };

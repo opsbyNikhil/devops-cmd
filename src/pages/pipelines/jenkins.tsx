@@ -863,6 +863,134 @@ const CODE_P10 = `pipeline {
 }
 `;
 
+const CODE_P11 = `pipeline{
+  agent {label 'SPC'}
+    stages{
+      stage ('git checkout'){
+        steps {
+          git url: "https://github.com/Mygit-personal/spring-petclinic.git",
+            branch: "main"
+
+        }
+      }
+      stage ("build") {
+        steps {
+          script {
+            def buildScript = load "my-shared-library/vars/build.groovy"
+            buildScript()
+          }
+        }
+      }
+    }
+}
+`;
+
+const CODE_SHARED_LIB_BUILD = `def call() {
+    sh 'mvn package'
+}
+
+return this`;
+
+const CODE_P12 = `@Library('shared-lb@main') _
+pipeline{
+  agent {label 'SPC'}
+    stages{
+      stage ('git checkout'){
+        steps {
+          git url: "https://github.com/Mygit-personal/spring-petclinic.git",
+            branch: "main"
+        }
+      }
+      stage ("build") {
+        steps {
+          build1()
+        }
+      }
+    }
+}`;
+
+const CODE_SHARED_LIB_BUILD2 = `def call(){
+    sh 'mvn package'
+}`;
+
+const CODE_P13 = `@Library('shared-lb-1@main') _
+pipeline{
+  agent {label 'SPC'}
+    stages{
+      stage ('git checkout'){
+        steps {
+          git url: "https://github.com/Mygit-personal/spring-petclinic.git",
+            branch: "main"
+        }
+      }
+      stage ("build") {
+        steps {
+          mybuild.build()
+        }
+      }
+    }
+}`;
+
+const CODE_SHARED_LIB_EXTERNAL = `def build(){
+    sh "mvn package"
+}`;
+
+const CODE_P14 = `pipeline {
+  agent {label "SPC"}
+
+  environment {
+    image_name = 'spc'
+    tag_name = '1.0'
+  }
+
+  triggers {
+    pollSCM("* * * * *")
+  }
+  stages {
+    stage ("git checkout") {
+      steps {
+        git url: "https://github.com/Mygit-personal/spring-petclinic.git",
+          branch: "main"
+      }
+    }
+
+    stage ("maven") {
+      when {
+        expression {
+          currentBuild.currentResult == null || currentBuild.currentResult == "SUCCESS"
+        }
+      }
+      steps {
+        sh "mvn package"
+      }
+    }
+
+    stage ("sonar scan") {
+      when {
+        expression {
+          currentBuild.currentResult == null || currentBuild.currentResult == "SUCCESS"
+        }
+      }
+      steps{
+        withCredentials([string(credentialsId: 'SONAR_ID', variable:"SONAR_TOKEN")]){
+        withSonarQubeEnv("SONAR"){
+          sh """mvn sonar:sonar \\
+              -Dsonar.projectKey=Mygit-personal_spring-petclinic \\
+              -Dsonar.organization=mygit-personal \\
+              -Dsonar.host.url=https://sonarcloud.io/ \\
+              -Dsonar.login=$SONAR_TOKEN
+          """
+        }}
+      }
+    }
+
+    stage ('docker image') {
+      steps {
+        sh 'docker image build -t \${image_name}:\${tag_name} .'
+      }
+    }
+  }
+}`;
 
 // ── 3 Pipeline definitions ────────────────────────────────────────────────────
 export const PIPELINES: Pipeline[] = [
@@ -1767,6 +1895,402 @@ export const PIPELINES: Pipeline[] = [
       "SONAR token added as Secret Text with ID: SONAR_ID",
       "deploy-k8s/dp.yaml and deploy-k8s/svc.yaml committed to repository",
       "Dockerfile exists in the root of the GitHub repository",
+    ],
+  },
+
+  {
+    id: "P11",
+    title: "Jenkins Pipeline + Shared Library (Same Repo)",
+    titleAccents: (
+      <>
+        Jenkins Pipeline <span style={{ color: "#d24939" }}>+</span>{" "}
+        <span style={{ color: "#a3e635" }}>Shared Library</span>{" "}
+        <span style={{ color: "rgba(163,230,53,0.55)", fontSize: 13 }}>
+          (Within Same Repo)
+        </span>
+      </>
+    ),
+    subtitle: "SHARED LIBRARY · VARS · REUSABLE GROOVY STEPS · SAME REPO",
+    accentColor: "#a3e635",
+    accentBg: "rgba(163,230,53,0.1)",
+    steps: [
+      ...COMMON_STEPS.slice(0, 3),
+      ...COMMON_STEPS.slice(3, 9),
+      {
+        id: "10",
+        title: "Create Shared Library Directory Structure",
+        node: "worker",
+        commands: [
+          "# Inside your project repo root",
+          "mkdir -p my-shared-library/vars",
+          "mkdir -p my-shared-library/src",
+          "mkdir -p my-shared-library/resources",
+          "# Create the reusable build step",
+          "touch my-shared-library/vars/build.groovy",
+          "# Commit and push to GitHub",
+          "git add . && git commit -m 'add shared library' && git push",
+        ],
+      },
+      {
+        id: "11",
+        title: "Write the Shared Library Groovy File",
+        node: "worker",
+        code: CODE_SHARED_LIB_BUILD,
+        codeLabel: "my-shared-library/vars/build.groovy",
+        notes: [
+          "def call() — the entry point Jenkins invokes when buildScript() is called",
+          "sh 'mvn package' — the reusable step; replace or extend with any shell commands",
+          "return this — required so the load() call in Jenkinsfile gets a reference to this script object",
+          "You can add more functions (e.g. def sonarScan(), def dockerBuild()) in the same file or separate .groovy files under vars/",
+        ],
+      },
+      {
+        id: "12",
+        title: "Configure Global Trusted Pipeline Libraries",
+        node: "jenkins",
+        notes: [
+          "Go to: Dashboard → Manage Jenkins → System → scroll to Global Trusted Pipeline Libraries",
+          "Click Add — Name: shared-library (this is the @Library name if used globally)",
+          "Default version: main (your default branch)",
+          "Retrieval method: Modern SCM → Git",
+          "Project Repository: https://github.com/Mygit-personal/spring-petclinic.git",
+          "Credentials: add if repo is private; leave blank for public repos",
+          "Click Save",
+          "Note: Since the library lives in the same repo, the pipeline uses load() instead of @Library — no annotation needed in the Jenkinsfile",
+        ],
+      },
+      {
+        id: "13",
+        title: "Pipeline Script — Shared Library via load()",
+        node: "jenkins",
+        code: CODE_P11,
+        codeLabel: "JENKINSFILE · SHARED LIBRARY",
+        notes: [
+          "load 'my-shared-library/vars/build.groovy' — loads the Groovy file from the same repo checkout",
+          "buildScript() — calls the def call() function defined in build.groovy",
+          "No @Library annotation needed — load() works within the same repository",
+          "script { } block is required to use the load() method inside a declarative pipeline",
+          "Extend this pattern: create sonar.groovy, docker.groovy etc. under vars/ and load each one in its own stage",
+          "This keeps your Jenkinsfile clean while all logic lives in the shared library files",
+        ],
+      },
+    ],
+    checklist: [
+      "Port 8080 open on Master Node Security Group",
+      "Port 22 open on Worker Node Security Group (for SSH agent)",
+      "Worker node label set to 'SPC' matching pipeline agent block",
+      "my-shared-library/vars/build.groovy created and committed to the repo root",
+      "build.groovy contains def call() { ... } and ends with return this",
+      "Global Trusted Pipeline Libraries configured in Manage Jenkins → System",
+      "Library name, repo URL, and branch set correctly in Jenkins system config",
+      "Maven installed on Worker Node or via Jenkins Global Tool Configuration",
+      "Jenkinsfile committed to root of the GitHub repository",
+      "Pipeline item configured: Pipeline script from SCM → Git → branch: main",
+    ],
+  },
+
+  {
+    id: "P12",
+    title: "Jenkins Pipeline + Shared Library (vars at Project Level)",
+    titleAccents: (
+      <>
+        Jenkins Pipeline <span style={{ color: "#d24939" }}>+</span>{" "}
+        <span style={{ color: "#fb923c" }}>Shared Library</span>{" "}
+        <span style={{ color: "rgba(251,146,60,0.55)", fontSize: 13 }}>
+          (vars at Project Level)
+        </span>
+      </>
+    ),
+    subtitle:
+      "SHARED LIBRARY · @LIBRARY ANNOTATION · VARS IN PROJECT ROOT · SAME REPO",
+    accentColor: "#fb923c",
+    accentBg: "rgba(251,146,60,0.1)",
+    steps: [
+      ...COMMON_STEPS.slice(0, 3),
+      ...COMMON_STEPS.slice(3, 9),
+      {
+        id: "10",
+        title: "Create vars/ Directory at Project Root",
+        node: "worker",
+        commands: [
+          "# Inside your project repo root (no separate shared-library folder)",
+          "mkdir -p vars",
+          "touch vars/build1.groovy",
+          "# Your repo structure should look like:",
+          "# spring-petclinic/",
+          "#   vars/",
+          "#     build1.groovy",
+          "#   Jenkinsfile",
+          "#   pom.xml",
+          "#   src/",
+          "git add . && git commit -m 'add vars/build1.groovy' && git push",
+        ],
+      },
+      {
+        id: "11",
+        title: "Write vars/build1.groovy",
+        node: "worker",
+        code: CODE_SHARED_LIB_BUILD2,
+        codeLabel: "vars/build1.groovy",
+        notes: [
+          "def call() — Jenkins automatically maps the filename to the function name",
+          "build1.groovy → build1() — the function name in Jenkinsfile must match the filename exactly",
+          "No return this needed here — unlike load(), @Library imports resolve automatically",
+          "Keep this file at the project root under vars/ — not inside any subfolder",
+          "You can create more files: vars/sonarScan.groovy → sonarScan(), vars/dockerBuild.groovy → dockerBuild()",
+        ],
+      },
+      {
+        id: "12",
+        title: "Configure Global Trusted Pipeline Libraries",
+        node: "jenkins",
+        notes: [
+          "Go to: Dashboard → Manage Jenkins → System → Global Trusted Pipeline Libraries",
+          "Click Add",
+          "Name: shared-lb (must match exactly what's in @Library('shared-lb@main'))",
+          "Default version: main",
+          "Retrieval method: Modern SCM → Git",
+          "Project Repository: https://github.com/Mygit-personal/spring-petclinic.git",
+          "Credentials: add if repo is private; leave blank for public repos",
+          "Click Save",
+          "The @Library annotation tells Jenkins to load the vars/ folder from this repo at the specified branch",
+        ],
+      },
+      {
+        id: "13",
+        title: "Pipeline Script — @Library Annotation",
+        node: "jenkins",
+        code: CODE_P12,
+        codeLabel: "JENKINSFILE · @LIBRARY ANNOTATION",
+        notes: [
+          "@Library('shared-lb@main') _ — loads the shared library named 'shared-lb' from the 'main' branch",
+          "The trailing underscore _ is required when no import statement follows — it's a Groovy syntax placeholder",
+          "build1() — directly calls the def call() from vars/build1.groovy; no script{} or load() needed",
+          "This is cleaner than load() — the function is available globally throughout the entire pipeline",
+          "shared-lb must match the Library Name set in Manage Jenkins → System → Global Trusted Pipeline Libraries",
+          "Difference from P11: P11 used load() for same-repo subfolder; P12 uses @Library with vars/ at project root",
+        ],
+      },
+    ],
+    checklist: [
+      "Port 8080 open on Master Node Security Group",
+      "Port 22 open on Worker Node Security Group",
+      "Worker node label set to 'SPC' matching pipeline agent block",
+      "vars/ directory created at the project root (not inside a subfolder)",
+      "vars/build1.groovy created with def call() { sh 'mvn package' }",
+      "vars/build1.groovy committed and pushed to the main branch",
+      "Global Trusted Pipeline Libraries configured: Manage Jenkins → System",
+      "Library Name set to 'shared-lb' — must match @Library('shared-lb@main') exactly",
+      "Repo URL and branch (main) set correctly in the library config",
+      "Maven installed on Worker Node or via Jenkins Global Tool Configuration",
+      "Jenkinsfile with @Library annotation committed to repo root",
+      "Pipeline item configured: Pipeline script from SCM → Git → branch: main",
+    ],
+  },
+
+  {
+    id: "P13",
+    title: "Jenkins Pipeline + Shared Library (Separate Repo)",
+    titleAccents: (
+      <>
+        Jenkins Pipeline <span style={{ color: "#d24939" }}>+</span>{" "}
+        <span style={{ color: "#e879f9" }}>Shared Library</span>{" "}
+        <span style={{ color: "rgba(232,121,249,0.55)", fontSize: 13 }}>
+          (Separate Repo)
+        </span>
+      </>
+    ),
+    subtitle:
+      "SHARED LIBRARY · SEPARATE REPO · @LIBRARY ANNOTATION · CROSS-REPO REUSE",
+    accentColor: "#e879f9",
+    accentBg: "rgba(232,121,249,0.1)",
+    steps: [
+      ...COMMON_STEPS.slice(0, 3),
+      ...COMMON_STEPS.slice(3, 9),
+      {
+        id: "10",
+        title: "Create a New Shared Library Repository on GitHub",
+        node: "browser",
+        notes: [
+          "Go to GitHub → New Repository",
+          "Name it: shared-library (or any name — this is a dedicated library repo)",
+          "Initialize with a README, set branch to main",
+          "This repo will ONLY contain shared pipeline logic — no application code",
+          "The structure inside must follow Jenkins convention: vars/ at the root level",
+          "Any project repo (spring-petclinic, django-app etc.) can import from this single shared repo",
+        ],
+      },
+      {
+        id: "11",
+        title: "Create vars/mybuild.groovy in the Shared Library Repo",
+        node: "worker",
+        commands: [
+          "# Clone your new shared library repo",
+          "git clone https://github.com/Mygit-personal/shared-library.git",
+          "cd shared-library",
+          "mkdir -p vars",
+          "touch vars/mybuild.groovy",
+          "# Add the groovy content, then commit and push",
+          "git add . && git commit -m 'add mybuild step' && git push",
+          "# Repo structure:",
+          "# shared-library/",
+          "#   vars/",
+          "#     mybuild.groovy",
+        ],
+      },
+      {
+        id: "12",
+        title: "Write vars/mybuild.groovy",
+        node: "worker",
+        code: CODE_SHARED_LIB_EXTERNAL,
+        codeLabel: "shared-library/vars/mybuild.groovy",
+        notes: [
+          "def build() — named function (not def call()); called as mybuild.build() in the Jenkinsfile",
+          "Difference from P12: P12 used def call() → build1(); here def build() → mybuild.build()",
+          "def call() is implicit (filename = function name); def build() is explicit (filename.functionname)",
+          "You can add multiple functions in the same file: def test(), def sonar(), def deploy()",
+          "All functions in mybuild.groovy are available as mybuild.test(), mybuild.sonar() etc.",
+          "Commit this file to the shared-library repo — NOT to the spring-petclinic repo",
+        ],
+      },
+      {
+        id: "13",
+        title: "Configure Global Trusted Pipeline Libraries",
+        node: "jenkins",
+        notes: [
+          "Go to: Dashboard → Manage Jenkins → System → Global Trusted Pipeline Libraries",
+          "Click Add",
+          "Name: shared-lb-1 (must match exactly what's in @Library('shared-lb-1@main'))",
+          "Default version: main",
+          "Retrieval method: Modern SCM → Git",
+          "Project Repository: https://github.com/Mygit-personal/shared-library.git  ← the LIBRARY repo, not the app repo",
+          "Credentials: add if repo is private; leave blank for public repos",
+          "Click Save",
+          "Key difference from P12: the repo URL here points to the dedicated shared-library repo, not the project repo",
+        ],
+      },
+      {
+        id: "14",
+        title: "Pipeline Script — Shared Library from Separate Repo",
+        node: "jenkins",
+        code: CODE_P13,
+        codeLabel: "JENKINSFILE · SEPARATE REPO SHARED LIBRARY",
+        notes: [
+          "@Library('shared-lb-1@main') _ — loads from the shared-library repo configured in Jenkins system",
+          "shared-lb-1 must match the Name set in Global Trusted Pipeline Libraries exactly",
+          "@main pins to the main branch — change to a tag or commit SHA for version locking",
+          "mybuild.build() — calls def build() from vars/mybuild.groovy in the shared-library repo",
+          "The spring-petclinic repo has NO vars/ folder — all logic lives in the separate shared-library repo",
+          "Any other project can reuse this: just add @Library('shared-lb-1@main') _ to their Jenkinsfile",
+          "This is the recommended pattern for organizations with multiple project repos sharing common CI/CD logic",
+        ],
+      },
+    ],
+    checklist: [
+      "Port 8080 open on Master Node Security Group",
+      "Port 22 open on Worker Node Security Group",
+      "Worker node label set to 'SPC' matching pipeline agent block",
+      "Separate GitHub repo created for shared library (e.g. shared-library)",
+      "vars/mybuild.groovy created in the shared-library repo with def build() { sh 'mvn package' }",
+      "vars/mybuild.groovy committed and pushed to main branch of the shared-library repo",
+      "Global Trusted Pipeline Libraries configured: Manage Jenkins → System",
+      "Library Name set to 'shared-lb-1' — must match @Library('shared-lb-1@main') exactly",
+      "Repo URL in library config points to shared-library repo (NOT the app repo)",
+      "Branch set to main in library config",
+      "Maven installed on Worker Node or via Jenkins Global Tool Configuration",
+      "Jenkinsfile with @Library annotation committed to root of spring-petclinic repo",
+      "Pipeline item configured: Pipeline script from SCM → Git → branch: main",
+    ],
+  },
+  {
+    id: "P14",
+    title: "Jenkins Pipeline + Parallelism + when{} Conditions",
+    titleAccents: (
+      <>
+        Jenkins Pipeline <span style={{ color: "#d24939" }}>+</span>{" "}
+        <span style={{ color: "#34d399" }}>Parallelism</span>{" "}
+        <span style={{ color: "#d24939" }}>+</span>{" "}
+        <span style={{ color: "#fbbf24" }}>when{"{}"} Conditions</span>
+      </>
+    ),
+    subtitle:
+      "PARALLEL EXECUTION · CONDITIONAL STAGES · WHEN EXPRESSION · DOCKER BUILD",
+    accentColor: "#34d399",
+    accentBg: "rgba(52,211,153,0.1)",
+    steps: [
+      ...COMMON_STEPS.slice(0, 3),
+      {
+        id: "04",
+        title: "Install Docker on Worker Node",
+        node: "worker",
+        commands: [
+          "sudo apt update && sudo apt install docker.io -y",
+          "sudo usermod -aG docker ubuntu",
+          "sudo usermod -aG docker jenkins",
+          "sudo systemctl restart jenkins",
+        ],
+      },
+      ...COMMON_STEPS.slice(3, 10),
+      {
+        id: "11",
+        title: "What is Parallelism in Jenkins",
+        node: "jenkins",
+        notes: [
+          "Parallelism means running multiple stages or steps simultaneously instead of one after another",
+          "Reduces total pipeline execution time — e.g. sonar scan and docker build can run at the same time",
+          "Defined using parallel { } block inside a stage, or by using when { } to control stage execution flow",
+          "This pipeline uses when { expression { } } — a conditional guard that skips a stage if a prior stage failed",
+          "currentBuild.currentResult == null — true at the very start before any stage has run",
+          "currentBuild.currentResult == 'SUCCESS' — true as long as all previous stages passed",
+          "If maven stage fails → currentResult becomes FAILURE → sonar scan stage is automatically skipped",
+          "This avoids wasting time running downstream stages when an upstream stage has already broken the build",
+        ],
+      },
+      {
+        id: "12",
+        title: "How when{} Expression Works",
+        node: "jenkins",
+        notes: [
+          "when { expression { ... } } — evaluates a Groovy expression; stage runs only if it returns true",
+          "currentBuild.currentResult == null — the result is null before any stage sets it; this covers the first stage",
+          "|| currentBuild.currentResult == 'SUCCESS' — allows the stage to run if everything so far has passed",
+          "Place when { } block inside any stage you want to conditionally guard",
+          "Stages without when { } always run regardless of prior results (e.g. git checkout, docker image)",
+          "Other when conditions: when { branch 'main' }, when { environment name: 'ENV', value: 'prod' }, when { not { branch 'main' } }",
+          "when { } is evaluated before the stage's agent and steps — so skipped stages don't consume executor time",
+        ],
+      },
+      {
+        id: "13",
+        title: "Pipeline Script — Parallelism + when{} Conditions",
+        node: "jenkins",
+        code: CODE_P14,
+        codeLabel: "JENKINSFILE · PARALLELISM + WHEN CONDITIONS",
+        notes: [
+          "stage maven — guarded by when { expression }; skipped if any prior stage failed",
+          "stage sonar scan — also guarded; only runs if maven stage succeeded",
+          "stage docker image — no when { } guard; always runs even if sonar fails",
+          "environment block — image_name and tag_name available as env vars across all stages",
+          "pollSCM('* * * * *') — triggers pipeline every minute on new commits",
+          "This pattern prevents cascading failures: a broken build won't waste time on sonar or docker",
+          "To make maven and sonar run in parallel: wrap both inside a parallel { } block in a single stage",
+        ],
+      },
+    ],
+    checklist: [
+      "Port 8080 open on Master Node Security Group",
+      "Port 22 open on Worker Node Security Group",
+      "Worker node label set to 'SPC' matching pipeline agent block",
+      "Docker installed on worker node: sudo apt install docker.io -y",
+      "Jenkins user added to docker group: sudo usermod -aG docker jenkins",
+      "Maven installed on Worker Node or via Jenkins Global Tool Configuration",
+      "SonarCloud project created with correct projectKey & organization",
+      "SONAR token added as Secret Text with ID: SONAR_ID (uppercase)",
+      "SonarQube Scanner plugin installed in Jenkins",
+      "SonarQube server configured: Manage Jenkins → System → SonarQube servers → Name: SONAR",
+      "Dockerfile exists in the root of the GitHub repository",
+      "Jenkinsfile committed to root of the GitHub repository",
+      "Pipeline item configured: Pipeline script from SCM → Git → branch: main",
     ],
   },
 ];
