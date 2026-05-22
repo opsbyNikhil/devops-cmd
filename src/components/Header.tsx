@@ -735,6 +735,7 @@
 // };
 
 // export default Header;
+
 import React, { useState, useEffect, useRef } from "react";
 import { useTheme } from "../Themecontext";
 
@@ -748,8 +749,7 @@ import { linuxCommands } from "../pages/Linux";
 import { JenkinsPipelines } from "../pages/pipelines/jenkins";
 import Azure from "../pages/pipelines/azure";
 import GithunactionsTopics from "../pages/pipelines/github-actions";
-
-// ── Types ──
+import { k8sCommandCount } from "../pages/kubernates/full-view-k8s";
 export type TabKey =
   | "docker"
   | "terraform"
@@ -759,7 +759,8 @@ export type TabKey =
   | "github"
   | "jenkins"
   | "azure-devops"
-  | "github-actions";
+  | "github-actions"
+  | "full-view-k8s";
 
 export interface Tab {
   key: TabKey;
@@ -800,7 +801,8 @@ export const TABS: Tab[] = [
     accentLight: "#14532d",
     glow: "#22c55e40",
     glowLight: "#22c55e25",
-    description: "Essential Linux commands, shell scripting & system administration",
+    description:
+      "Essential Linux commands, shell scripting & system administration",
     commandCount: linuxCommands.length,
   },
   {
@@ -826,7 +828,8 @@ export const TABS: Tab[] = [
     accentLight: "#0670a0",
     glow: "#0db7ed40",
     glowLight: "#0db7ed25",
-    description: "Container lifecycle, images, networks, volumes & docker-compose",
+    description:
+      "Container lifecycle, images, networks, volumes & docker-compose",
     commandCount: dockerCommands.length,
   },
   {
@@ -839,7 +842,8 @@ export const TABS: Tab[] = [
     accentLight: "#4a208c",
     glow: "#7b42bc40",
     glowLight: "#7b42bc25",
-    description: "Infrastructure as Code — init, plan, apply, state & workspaces",
+    description:
+      "Infrastructure as Code — init, plan, apply, state & workspaces",
     commandCount: terraformCommands.length,
   },
   {
@@ -907,6 +911,19 @@ export const TABS: Tab[] = [
     description: "Workflow automation, runners, actions & CI/CD pipelines",
     commandCount: GithunactionsTopics.length,
   },
+  {
+    key: "full-view-k8s",
+    label: "Kubernates",
+    emoji: "⚡",
+    color: "#2da44e",
+    colorLight: "#1a7a34",
+    accent: "#6fdd8b",
+    accentLight: "#0f5a22",
+    glow: "#2da44e40",
+    glowLight: "#2da44e25",
+    description: "Workflow automation, runners, actions & CI/CD pipelines",
+    commandCount: k8sCommandCount
+  },
 ];
 
 // Pipelines Group Dropdown
@@ -925,8 +942,26 @@ export const PIPELINE_GROUP: DropdownGroup = {
   ),
 };
 
+// K8s Sub-Docs Data
+const K8S_DOCS = [
+  {
+    path: "full-view-k8s",
+    label: "Kubernetes",
+    emoji: "🚀",
+    description:
+      "Explore essential commands for deploying and troubleshooting pods.",
+  },
+];
+
 // Helper to filter which tabs show directly in the top header
-const DIRECT_TABS = ["docker", "terraform", "kubernetes", "ansible", "linux", "github"];
+const DIRECT_TABS = [
+  "docker",
+  "terraform",
+  "kubernetes",
+  "ansible",
+  "linux",
+  "github",
+];
 
 interface HeaderProps {
   activeTab: TabKey | null;
@@ -935,17 +970,20 @@ interface HeaderProps {
 }
 
 // ── Floating Island Component ──
-export default function Header({ activeTab, setActiveTab, onHomeClick }: HeaderProps) {
+export default function Header({
+  activeTab,
+  setActiveTab,
+  onHomeClick,
+}: HeaderProps) {
   const { isDark, toggleTheme } = useTheme();
-  const [time, setTime] = useState(new Date());
+
+  // Dropdown States
   const [dropOpen, setDropOpen] = useState(false);
+  const [k8sDropOpen, setK8sDropOpen] = useState(false);
+
+  // Refs for click-outside detection
   const dropRef = useRef<HTMLDivElement>(null);
-  
-  // Real-time clock
-  useEffect(() => {
-    const timer = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+  const k8sDropRef = useRef<HTMLDivElement>(null);
 
   // Dropdown click-outside handler
   useEffect(() => {
@@ -953,16 +991,16 @@ export default function Header({ activeTab, setActiveTab, onHomeClick }: HeaderP
       if (dropRef.current && !dropRef.current.contains(e.target as Node)) {
         setDropOpen(false);
       }
+      if (
+        k8sDropRef.current &&
+        !k8sDropRef.current.contains(e.target as Node)
+      ) {
+        setK8sDropOpen(false);
+      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
-
-  const timeStr = time.toLocaleTimeString("en-US", {
-    hour12: false,
-    hour: "2-digit",
-    minute: "2-digit"
-  });
 
   // Dynamic Theme Colors
   const bg = isDark ? "rgba(9, 9, 11, 0.75)" : "rgba(255, 255, 255, 0.75)";
@@ -970,32 +1008,38 @@ export default function Header({ activeTab, setActiveTab, onHomeClick }: HeaderP
   const text = isDark ? "#a1a1aa" : "#52525b";
   const textActive = isDark ? "#fafafa" : "#09090b";
   const hoverBg = isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)";
-  const dropdownShadow = isDark 
-    ? "0 20px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08)" 
+  const dropdownShadow = isDark
+    ? "0 20px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08)"
     : "0 20px 40px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.08)";
 
   const activeTabData = TABS.find((t) => t.key === activeTab);
-  const activeGlow = activeTabData ? (isDark ? activeTabData.color : activeTabData.colorLight) : "transparent";
+  const activeGlow = activeTabData
+    ? isDark
+      ? activeTabData.color
+      : activeTabData.colorLight
+    : "transparent";
 
-  const visibleTabs = TABS.filter(t => DIRECT_TABS.includes(t.key));
+  const visibleTabs = TABS.filter((t) => DIRECT_TABS.includes(t.key));
   const pipelineKeys = PIPELINE_GROUP.children.map((t) => t.key);
   const pipelineActive = activeTab && pipelineKeys.includes(activeTab);
-  const pipelineColor = isDark ? PIPELINE_GROUP.color : PIPELINE_GROUP.colorLight;
+  const pipelineColor = isDark
+    ? PIPELINE_GROUP.color
+    : PIPELINE_GROUP.colorLight;
 
   return (
     <div style={s.navContainer}>
-      <nav 
+      <nav
         style={{
           ...s.island,
           background: bg,
           borderColor: border,
-          boxShadow: `0 8px 32px rgba(0, 0, 0, ${isDark ? "0.4" : "0.1"}), 0 0 0 1px ${border}, 0 4px 20px ${activeGlow}30`
+          boxShadow: `0 8px 32px rgba(0, 0, 0, ${isDark ? "0.4" : "0.1"}), 0 0 0 1px ${border}, 0 4px 20px ${activeGlow}30`,
         }}
       >
         {/* ── 1. Logo / Home ── */}
-        <button 
-          onClick={onHomeClick} 
-          style={{...s.iconBtn, color: textActive}}
+        <button
+          onClick={onHomeClick}
+          style={{ ...s.iconBtn, color: textActive }}
           title="Home"
         >
           <div style={s.cmdLogo}>
@@ -1003,7 +1047,7 @@ export default function Header({ activeTab, setActiveTab, onHomeClick }: HeaderP
           </div>
         </button>
 
-        <div style={{...s.divider, background: border}} />
+        <div style={{ ...s.divider, background: border }} />
 
         {/* ── 2. Center Tabs ── */}
         <div style={s.tabsWrapper}>
@@ -1011,6 +1055,148 @@ export default function Header({ activeTab, setActiveTab, onHomeClick }: HeaderP
             const isActive = activeTab === tab.key;
             const tabColor = isDark ? tab.color : tab.colorLight;
 
+            // SPECIAL RENDER FOR KUBERNETES DROPDOWN
+            if (tab.key === "kubernetes") {
+              return (
+                <div
+                  key={tab.key}
+                  ref={k8sDropRef}
+                  style={{ position: "relative" }}
+                  onMouseEnter={() => setK8sDropOpen(true)}
+                  onMouseLeave={() => setK8sDropOpen(false)}
+                >
+                  <button
+                    onClick={() => setActiveTab(tab.key)}
+                    style={{
+                      ...s.tab,
+                      color: isActive || k8sDropOpen ? textActive : text,
+                      background: isActive
+                        ? `${tabColor}15`
+                        : k8sDropOpen
+                          ? hoverBg
+                          : "transparent",
+                    }}
+                  >
+                    <span style={{ fontSize: "14px" }}>{tab.emoji}</span>
+                    <span
+                      style={{
+                        fontWeight: isActive || k8sDropOpen ? 600 : 500,
+                      }}
+                    >
+                      {tab.label}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        marginLeft: "2px",
+                        opacity: k8sDropOpen ? 1 : 0.5,
+                        transform: k8sDropOpen
+                          ? "rotate(180deg)"
+                          : "rotate(0deg)",
+                        transition: "all 0.2s ease",
+                      }}
+                    >
+                      ▼
+                    </span>
+                    {isActive && (
+                      <div
+                        style={{
+                          ...s.activeIndicator,
+                          background: tabColor,
+                          boxShadow: `0 0 8px ${tabColor}`,
+                        }}
+                      />
+                    )}
+                  </button>
+
+                  {/* K8s Sub-Docs Panel */}
+                  <div
+                    style={{
+                      ...s.dropdown,
+                      background: bg,
+                      boxShadow: dropdownShadow,
+                      opacity: k8sDropOpen ? 1 : 0,
+                      transform: k8sDropOpen
+                        ? "translateY(0) scale(1)"
+                        : "translateY(-10px) scale(0.98)",
+                      pointerEvents: k8sDropOpen ? "auto" : "none",
+                    }}
+                  >
+                    <div
+                      style={{
+                        ...s.dropHeader,
+                        borderBottom: `1px solid ${border}`,
+                      }}
+                    >
+                      K8s Documentation
+                    </div>
+                    {K8S_DOCS.map((doc) => (
+                      <button
+                        key={doc.path}
+                        onClick={() => {
+                          setActiveTab(doc.path as TabKey); // Triggers the render in App.tsx
+                          setK8sDropOpen(false); // Closes the dropdown menu
+                        }}
+                        style={{
+                          ...s.dropItem,
+                          background: "transparent",
+                          border: "none",
+                          textAlign: "left",
+                          cursor: "pointer",
+                          width: "100%",
+                          padding: "8px 10px",
+                        }}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.background = hoverBg;
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.background = "transparent";
+                        }}
+                      >
+                        <div
+                          style={{
+                            ...s.dropIconBox,
+                            background: `${tabColor}20`,
+                            border: `1px solid ${tabColor}40`,
+                          }}
+                        >
+                          {doc.emoji}
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "flex-start",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: "13px",
+                              fontWeight: 600,
+                              color: textActive,
+                            }}
+                          >
+                            {doc.label}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              color: text,
+                              textAlign: "left",
+                              marginTop: "2px",
+                            }}
+                          >
+                            {doc.description}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            }
+
+            // NORMAL RENDER FOR ALL OTHER TABS
             return (
               <button
                 key={tab.key}
@@ -1024,20 +1210,23 @@ export default function Header({ activeTab, setActiveTab, onHomeClick }: HeaderP
                   if (!isActive) e.currentTarget.style.background = hoverBg;
                 }}
                 onMouseOut={(e) => {
-                  if (!isActive) e.currentTarget.style.background = "transparent";
+                  if (!isActive)
+                    e.currentTarget.style.background = "transparent";
                 }}
               >
                 <span style={{ fontSize: "14px" }}>{tab.emoji}</span>
-                <span style={{ fontWeight: isActive ? 600 : 500 }}>{tab.label}</span>
-                
+                <span style={{ fontWeight: isActive ? 600 : 500 }}>
+                  {tab.label}
+                </span>
+
                 {/* Active Indicator Underline */}
                 {isActive && (
-                  <div 
+                  <div
                     style={{
                       ...s.activeIndicator,
                       background: tabColor,
-                      boxShadow: `0 0 8px ${tabColor}`
-                    }} 
+                      boxShadow: `0 0 8px ${tabColor}`,
+                    }}
                   />
                 )}
               </button>
@@ -1045,8 +1234,8 @@ export default function Header({ activeTab, setActiveTab, onHomeClick }: HeaderP
           })}
 
           {/* ── Pipelines Dropdown Trigger ── */}
-          <div 
-            ref={dropRef} 
+          <div
+            ref={dropRef}
             style={{ position: "relative" }}
             onMouseEnter={() => setDropOpen(true)}
             onMouseLeave={() => setDropOpen(false)}
@@ -1055,40 +1244,58 @@ export default function Header({ activeTab, setActiveTab, onHomeClick }: HeaderP
               style={{
                 ...s.tab,
                 color: pipelineActive || dropOpen ? textActive : text,
-                background: pipelineActive ? `${pipelineColor}15` : dropOpen ? hoverBg : "transparent",
+                background: pipelineActive
+                  ? `${pipelineColor}15`
+                  : dropOpen
+                    ? hoverBg
+                    : "transparent",
               }}
             >
               <span style={{ fontSize: "14px" }}>{PIPELINE_GROUP.emoji}</span>
-              <span style={{ fontWeight: pipelineActive || dropOpen ? 600 : 500 }}>{PIPELINE_GROUP.label}</span>
-              <span style={{
-                fontSize: "10px", 
-                marginLeft: "2px",
-                opacity: dropOpen ? 1 : 0.5,
-                transform: dropOpen ? "rotate(180deg)" : "rotate(0deg)",
-                transition: "all 0.2s ease"
-              }}>
+              <span
+                style={{ fontWeight: pipelineActive || dropOpen ? 600 : 500 }}
+              >
+                {PIPELINE_GROUP.label}
+              </span>
+              <span
+                style={{
+                  fontSize: "10px",
+                  marginLeft: "2px",
+                  opacity: dropOpen ? 1 : 0.5,
+                  transform: dropOpen ? "rotate(180deg)" : "rotate(0deg)",
+                  transition: "all 0.2s ease",
+                }}
+              >
                 ▼
               </span>
 
               {pipelineActive && (
-                <div style={{
-                  ...s.activeIndicator,
-                  background: pipelineColor,
-                  boxShadow: `0 0 8px ${pipelineColor}`
-                }} />
+                <div
+                  style={{
+                    ...s.activeIndicator,
+                    background: pipelineColor,
+                    boxShadow: `0 0 8px ${pipelineColor}`,
+                  }}
+                />
               )}
             </button>
 
             {/* Dropdown Panel */}
-            <div style={{
-              ...s.dropdown,
-              background: bg,
-              boxShadow: dropdownShadow,
-              opacity: dropOpen ? 1 : 0,
-              transform: dropOpen ? "translateY(0) scale(1)" : "translateY(-10px) scale(0.98)",
-              pointerEvents: dropOpen ? "auto" : "none",
-            }}>
-              <div style={{...s.dropHeader, borderBottom: `1px solid ${border}`}}>
+            <div
+              style={{
+                ...s.dropdown,
+                background: bg,
+                boxShadow: dropdownShadow,
+                opacity: dropOpen ? 1 : 0,
+                transform: dropOpen
+                  ? "translateY(0) scale(1)"
+                  : "translateY(-10px) scale(0.98)",
+                pointerEvents: dropOpen ? "auto" : "none",
+              }}
+            >
+              <div
+                style={{ ...s.dropHeader, borderBottom: `1px solid ${border}` }}
+              >
                 CI / CD Pipelines
               </div>
               {PIPELINE_GROUP.children.map((item) => {
@@ -1104,32 +1311,55 @@ export default function Header({ activeTab, setActiveTab, onHomeClick }: HeaderP
                     }}
                     style={{
                       ...s.dropItem,
-                      background: isItemActive ? `${itemColor}15` : "transparent",
+                      background: isItemActive
+                        ? `${itemColor}15`
+                        : "transparent",
                     }}
                     onMouseOver={(e) => {
-                      if (!isItemActive) e.currentTarget.style.background = hoverBg;
+                      if (!isItemActive)
+                        e.currentTarget.style.background = hoverBg;
                     }}
                     onMouseOut={(e) => {
-                      if (!isItemActive) e.currentTarget.style.background = "transparent";
+                      if (!isItemActive)
+                        e.currentTarget.style.background = "transparent";
                     }}
                   >
-                    <div style={{
-                      ...s.dropIconBox,
-                      background: `${itemColor}20`,
-                      border: `1px solid ${itemColor}40`,
-                      boxShadow: isItemActive ? `0 0 10px ${item.glow}` : "none"
-                    }}>
+                    <div
+                      style={{
+                        ...s.dropIconBox,
+                        background: `${itemColor}20`,
+                        border: `1px solid ${itemColor}40`,
+                        boxShadow: isItemActive
+                          ? `0 0 10px ${item.glow}`
+                          : "none",
+                      }}
+                    >
                       {item.emoji}
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-                      <span style={{ 
-                        fontSize: "13px", 
-                        fontWeight: isItemActive ? 700 : 600, 
-                        color: isItemActive ? itemColor : textActive 
-                      }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "flex-start",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "13px",
+                          fontWeight: isItemActive ? 700 : 600,
+                          color: isItemActive ? itemColor : textActive,
+                        }}
+                      >
                         {item.label}
                       </span>
-                      <span style={{ fontSize: "11px", color: text, textAlign: "left", marginTop: "2px" }}>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          color: text,
+                          textAlign: "left",
+                          marginTop: "2px",
+                        }}
+                      >
                         {item.description}
                       </span>
                     </div>
@@ -1140,32 +1370,19 @@ export default function Header({ activeTab, setActiveTab, onHomeClick }: HeaderP
           </div>
         </div>
 
-        <div style={{...s.divider, background: border}} />
+        <div style={{ ...s.divider, background: border }} />
 
-        {/* ── 3. Right Actions (Clock & Theme) ── */}
+        {/* ── 3. Right Actions (Theme) ── */}
         <div style={s.actions}>
-          {/* <div style={{...s.clock, color: textActive, borderColor: border}}>
-            <div style={s.pulse} />
-            {timeStr}
-          </div> */}
-
-          <button 
-            onClick={toggleTheme} 
-            style={{...s.iconBtn, color: text, background: hoverBg}}
+          <button
+            onClick={toggleTheme}
+            style={{ ...s.iconBtn, color: text, background: hoverBg }}
             title="Toggle Theme"
           >
             {isDark ? "🌙" : "☀️"}
           </button>
         </div>
       </nav>
-
-      <style>{`
-        @keyframes pulseDot {
-          0% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.3; transform: scale(0.8); }
-          100% { opacity: 1; transform: scale(1); }
-        }
-      `}</style>
     </div>
   );
 }
@@ -1180,7 +1397,7 @@ const s: Record<string, React.CSSProperties> = {
     justifyContent: "center",
     paddingTop: "24px",
     zIndex: 9999,
-    pointerEvents: "none", 
+    pointerEvents: "none",
   },
   island: {
     display: "flex",
@@ -1192,7 +1409,7 @@ const s: Record<string, React.CSSProperties> = {
     WebkitBackdropFilter: "blur(20px) saturate(180%)",
     borderStyle: "solid",
     borderWidth: "1px",
-    pointerEvents: "auto", 
+    pointerEvents: "auto",
     fontFamily: "system-ui, -apple-system, sans-serif",
     transition: "all 0.4s cubic-bezier(0.16, 1, 0.3, 1)",
   },
@@ -1285,26 +1502,6 @@ const s: Record<string, React.CSSProperties> = {
     gap: "8px",
     paddingLeft: "4px",
   },
-  clock: {
-    display: "flex",
-    alignItems: "center",
-    gap: "6px",
-    padding: "4px 10px",
-    borderRadius: "12px",
-    fontSize: "12px",
-    fontWeight: 600,
-    fontFamily: "'JetBrains Mono', monospace",
-    borderWidth: "1px",
-    borderStyle: "solid",
-  },
-  pulse: {
-    width: "6px",
-    height: "6px",
-    borderRadius: "50%",
-    background: "#22c55e",
-    boxShadow: "0 0 8px #22c55e",
-    animation: "pulseDot 2s ease-in-out infinite",
-  },
   iconBtn: {
     display: "flex",
     alignItems: "center",
@@ -1317,5 +1514,5 @@ const s: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     fontSize: "14px",
     transition: "all 0.2s ease",
-  }
+  },
 };

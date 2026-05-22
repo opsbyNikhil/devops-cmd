@@ -5,8 +5,7 @@ import Footer from "./components/Footer";
 import Body from "./components/Body";
 import HomePage from "./components/Homepage";
 import DevOpsLoader from "./DevOpsLoader";
-
-// Inner component so it can access useTheme() inside ThemeProvider
+import Kubernates from "./pages/kubernates/full-view-k8s";
 const AppContent: React.FC = () => {
   const { isDark } = useTheme();
   const [activeTab, setActiveTab] = useState<TabKey | null>(null);
@@ -32,6 +31,8 @@ const AppContent: React.FC = () => {
 
       {activeTab === null ? (
         <HomePage onNavigate={handleTabClick} />
+      ) : activeTab === "full-view-k8s" ? (
+        <Kubernates />
       ) : (
         <>
           <Body activeTab={activeTab} />
@@ -42,7 +43,6 @@ const AppContent: React.FC = () => {
   );
 };
 
-// Loader gates the entire app — ThemeProvider mounts only after loading
 function App() {
   const [loading, setLoading] = useState(true);
 

@@ -8,7 +8,9 @@ import { Kubernates } from "../pages/Kubernetes";
 import { Ansible } from "../pages/Ansible";
 import { linuxCommands } from "../pages/Linux";
 import { JenkinsPipelines } from "../pages/pipelines/jenkins";
-
+import AzurePipelines from "../pages/pipelines/azure";
+import GithunactionsTopics from "../pages/pipelines/github-actions";
+import { k8sCommandCount } from "../pages/kubernates/full-view-k8s";
 interface FooterProps {
   activeTab: TabKey;
 }
@@ -21,8 +23,9 @@ const commandCounts: Record<TabKey, number> = {
   kubernetes: Kubernates.length,
   ansible: Ansible.length,
   jenkins: JenkinsPipelines.length,
-  "azure-devops": 0,
-  "github-actions": 0,
+  "azure-devops": AzurePipelines.length,
+  "github-actions": GithunactionsTopics.length,
+  "full-view-k8s": k8sCommandCount,
 };
 
 const Footer: React.FC<FooterProps> = ({ activeTab }) => {
